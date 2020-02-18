@@ -13,7 +13,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,10 +22,14 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.estudo.controller.responses.ResponseAPI;
+import br.com.estudo.controller.responses.ResponseItems;
 import br.com.estudo.dao.entity.ClienteEntity;
 import br.com.estudo.dao.repository.ClienteRepository;
+import br.com.estudo.exception.ClienteException;
 
 @RestController
 @RequestMapping("/cliente")
@@ -39,118 +42,115 @@ public class ClienteController {
 	private ClienteRepository clienteRepository;
 
 	@GetMapping("/{id}")
-	public ResponseEntity<?> findById(@PathVariable(value = "id") Long id) {
-		try {
-			logger.info("buscando cliente por id: {}", id);
-			Optional<ClienteEntity> cliente = clienteRepository.findById(id);
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI findById(@PathVariable(value = "id") Long id) throws ClienteException {
+		logger.info("buscando cliente por id: {}", id);
+		Optional<ClienteEntity> cliente = clienteRepository.findById(id);
 
-			if (cliente.isPresent()) {
-				return new ResponseEntity<>(cliente.get(), HttpStatus.OK);
-			}
-
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		} catch (Exception e) {
-			String message = "Falha na busca de cliente por id";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+		if (!cliente.isPresent())
+			throw new ClienteException("Cliente não encontrado!");
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(cliente.get())
+				.build();
 	}
 
 	@GetMapping("/batch")
-	public ResponseEntity<?> findByIdIn(@RequestParam(required = true, value = "ids") List<Long> ids) {
-		try {
-			logger.info("buscando cliente por ids: {}", ids);
-			List<ClienteEntity> clientes = clienteRepository.findAllById(ids);
-			return new ResponseEntity<>(clientes, HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha na busca de clientes por ids";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI findByIdIn(@RequestParam(required = true, value = "ids") List<Long> ids) {
+		logger.info("buscando cliente por ids: {}", ids);
+		List<ClienteEntity> clientes = clienteRepository.findAllById(ids);
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(clientes)
+				.build();
 	}
 
 	@GetMapping
-	public ResponseEntity<?> findAll(@PageableDefault(page = 0, size = 5, sort = { "id" }, direction = Sort.Direction.DESC) Pageable pageable) {
-		try {
-			logger.info("buscando clientes");
-			Page<ClienteEntity> clientes = clienteRepository.findAll(pageable);
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI findAll(@PageableDefault(page = 0, size = 5, sort = { "id" }, direction = Sort.Direction.DESC) Pageable pageable) {
+		logger.info("buscando clientes");
+		Page<ClienteEntity> pageClientes = clienteRepository.findAll(pageable);
 
-			return new ResponseEntity<>(clientes.getContent(), HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha na busca de clientes";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+		ResponseItems items = ResponseItems.builder()
+				.items(pageClientes.getContent())
+				.pageNumber(pageClientes.getNumber())
+				.pageSize(pageClientes.getTotalPages())
+				.totalSize(pageClientes.getTotalElements())
+				.build();
+
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(items)
+				.build();
 	}
 
 	@GetMapping("/endereco/{idEndereco}")
-	public ResponseEntity<?> getClienteByIdEndereco(@PathVariable(value = "idEndereco") Long idEndereco) {
-		try {
-			logger.info("buscando clientes por id endereco: {}", idEndereco);
-			List<ClienteEntity> clientes = clienteRepository.findByIdEndereco(idEndereco);
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI getClienteByIdEndereco(@PathVariable(value = "idEndereco") Long idEndereco) {
+		logger.info("buscando clientes por id endereco: {}", idEndereco);
+		List<ClienteEntity> clientes = clienteRepository.findByIdEndereco(idEndereco);
 
-			return new ResponseEntity<>(clientes, HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha na busca de clientes por id endereco";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(clientes)
+				.build();
 	}
 
 	@PostMapping
-	public ResponseEntity<?> save(@Valid @RequestBody ClienteEntity clienteEntity) {
-		try {
-			logger.info("criando novo cliente");
-			clienteRepository.save(clienteEntity);
-			return new ResponseEntity<>(HttpStatus.CREATED);
-		} catch (Exception e) {
-			String message = "Falha ao criar novo cliente";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+	@ResponseStatus(HttpStatus.CREATED)
+	public ResponseAPI save(@Valid @RequestBody ClienteEntity clienteEntity) {
+		logger.info("criando novo cliente");
+		ClienteEntity entity = clienteRepository.save(clienteEntity);
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.CREATED.value())
+				.data(entity)
+				.build();
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<?> update(@PathVariable(value = "id") Long id, @RequestBody ClienteEntity clienteInput) {
-		try {
-			Optional<ClienteEntity> opCliente = clienteRepository.findById(id);
-			if (!opCliente.isPresent())
-				return ResponseEntity.notFound().build();
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI update(@PathVariable(value = "id") Long id, @RequestBody ClienteEntity clienteInput) throws ClienteException {
+		logger.info("atualizando cliente com id {}", id);
+		
+		Optional<ClienteEntity> opCliente = clienteRepository.findById(id);
+		if (!opCliente.isPresent())
+			throw new ClienteException("Cliente não encontrado!");
 
-			ClienteEntity cliente = opCliente.get();
-			
-			if(clienteInput.getNome() != null && !clienteInput.getNome().isEmpty()) {
-				cliente.setNome(clienteInput.getNome());
-			}
-			
-			if(clienteInput.getIdade() != null) {
-				cliente.setIdade(clienteInput.getIdade());
-			}
-			
-			if(clienteInput.getIdEndereco() != null) {
-				cliente.setIdEndereco(clienteInput.getIdEndereco());
-			}
-			
-			clienteRepository.save(cliente);
-
-			return new ResponseEntity<>(HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha ao atualizar cliente";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
+		ClienteEntity cliente = opCliente.get();
+		
+		if(clienteInput.getNome() != null && !clienteInput.getNome().isEmpty()) {
+			cliente.setNome(clienteInput.getNome());
 		}
+		
+		if(clienteInput.getIdade() != null) {
+			cliente.setIdade(clienteInput.getIdade());
+		}
+		
+		if(clienteInput.getIdEndereco() != null) {
+			cliente.setIdEndereco(clienteInput.getIdEndereco());
+		}
+		
+		ClienteEntity entity = clienteRepository.save(cliente);
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(entity)
+				.build();
 	}
 
 	@DeleteMapping("/{id}")
-	public ResponseEntity<?> delete(@PathVariable("id") Long id) {
-		try {
-			clienteRepository.deleteById(id);
-			return new ResponseEntity<>(HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha ao remover cliente";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI delete(@PathVariable("id") Long id) {
+		logger.info("removendo cliente com id {}", id);
+		clienteRepository.deleteById(id);
+
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.build();
 	}
 
 }

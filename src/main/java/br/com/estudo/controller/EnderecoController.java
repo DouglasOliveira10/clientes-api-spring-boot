@@ -23,13 +23,17 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
 import com.google.gson.Gson;
 
+import br.com.estudo.controller.responses.ResponseAPI;
+import br.com.estudo.controller.responses.ResponseItems;
 import br.com.estudo.dao.entity.EnderecoEntity;
 import br.com.estudo.dao.repository.EnderecoRepository;
+import br.com.estudo.exception.EnderecoException;
 
 @RestController
 @RequestMapping("/endereco")
@@ -42,119 +46,110 @@ public class EnderecoController {
 	private EnderecoRepository enderecoRepository;
 
 	@GetMapping("/{id}")
-	public ResponseEntity<?> findById(@PathVariable(value = "id") Long id) {
-		try {
-			logger.info("buscando endereco por id: {}", id);
-			Optional<EnderecoEntity> endereco = enderecoRepository.findById(id);
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI findById(@PathVariable(value = "id") Long id) throws EnderecoException {
+		logger.info("buscando endereco por id: {}", id);
+		Optional<EnderecoEntity> endereco = enderecoRepository.findById(id);
 
-			if (endereco.isPresent()) {
-				return new ResponseEntity<>(endereco.get(), HttpStatus.OK);
-			}
-
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		} catch (Exception e) {
-			String message = "Falha na busca de endereco por id";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+		if (!endereco.isPresent())
+			throw new EnderecoException("Endereço não encontrado!");
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(endereco.get())
+				.build();
 	}
 
 	@GetMapping("/batch")
-	public ResponseEntity<?> findByIdIn(@RequestParam(required = true, value = "ids") List<Long> ids) {
-		try {
-			logger.info("buscando endereco por ids: {}", ids);
-			List<EnderecoEntity> enderecos = enderecoRepository.findAllById(ids);
-			return new ResponseEntity<>(enderecos, HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha na busca de endereco por ids";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI findByIdIn(@RequestParam(required = true, value = "ids") List<Long> ids) {
+		logger.info("buscando endereco por ids: {}", ids);
+		List<EnderecoEntity> enderecos = enderecoRepository.findAllById(ids);
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(enderecos)
+				.build();
 	}
 
 	@GetMapping
-	public ResponseEntity<?> findAll(@PageableDefault(page = 0, size = 5, sort = { "id" }, direction = Sort.Direction.DESC) Pageable pageable) {
-		try {
-			logger.info("buscando enderecos");
-			Page<EnderecoEntity> enderecos = enderecoRepository.findAll(pageable);
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI findAll(@PageableDefault(page = 0, size = 5, sort = { "id" }, direction = Sort.Direction.DESC) Pageable pageable) {
+		logger.info("buscando enderecos");
+		Page<EnderecoEntity> pageEnderecos = enderecoRepository.findAll(pageable);
+		
+		ResponseItems items = ResponseItems.builder()
+				.items(pageEnderecos.getContent())
+				.pageNumber(pageEnderecos.getNumber())
+				.pageSize(pageEnderecos.getTotalPages())
+				.totalSize(pageEnderecos.getTotalElements())
+				.build();
 
-			return new ResponseEntity<>(enderecos.getContent(), HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha na busca de enderecos";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(items)
+				.build();
 	}
 
 	@PostMapping
-	public ResponseEntity<?> save(@Valid @RequestBody EnderecoEntity enderecoEntity) {
-		try {
-			logger.info("criando novo endereco");
-			
-			Optional<EnderecoEntity> opEndereco = getByCep(enderecoEntity.getCep());
-			if(!opEndereco.isPresent()) return new ResponseEntity<>("Falha ao encontrar endereco pelo cep informado", HttpStatus.BAD_REQUEST);
-			
-			EnderecoEntity enderecoEntityByCep = opEndereco.get();
-			enderecoEntityByCep.setNumero(enderecoEntity.getNumero());
-			enderecoEntityByCep.setComplemento(enderecoEntity.getComplemento());
-			
-			enderecoRepository.save(enderecoEntityByCep);
-			return new ResponseEntity<>(HttpStatus.CREATED);
-		} catch (Exception e) {
-			String message = "Falha ao criar novo endereco";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+	@ResponseStatus(HttpStatus.CREATED)
+	public ResponseAPI save(@Valid @RequestBody EnderecoEntity enderecoEntity) throws EnderecoException {
+		logger.info("criando novo endereco");
+
+		Optional<EnderecoEntity> opEndereco = getByCep(enderecoEntity.getCep());
+		if (!opEndereco.isPresent())
+			throw new EnderecoException("Falha ao encontrar endereco pelo cep informado!");
+
+		EnderecoEntity enderecoEntityByCep = opEndereco.get();
+		enderecoEntityByCep.setNumero(enderecoEntity.getNumero());
+		enderecoEntityByCep.setComplemento(enderecoEntity.getComplemento());
+
+		EnderecoEntity entity = enderecoRepository.save(enderecoEntityByCep);
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.CREATED.value())
+				.data(entity)
+				.build();
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<?> update(@PathVariable(value = "id") Long id, @RequestBody EnderecoEntity enderecoInput) {
-		try {
-			Optional<EnderecoEntity> opEndereco = enderecoRepository.findById(id);
-			if (!opEndereco.isPresent())
-				return ResponseEntity.notFound().build();
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI update(@PathVariable(value = "id") Long id, @RequestBody EnderecoEntity enderecoInput) throws EnderecoException {
+		Optional<EnderecoEntity> opEndereco = enderecoRepository.findById(id);
+		if (!opEndereco.isPresent())
+			throw new EnderecoException("Endereço não encontrado!");
 
-			EnderecoEntity endereco = opEndereco.get();
-			
-			if(enderecoInput.getNumero() != null) {
-				endereco.setNumero(enderecoInput.getNumero());
-				endereco.setComplemento(enderecoInput.getComplemento());
-			}
-			
-			enderecoRepository.save(endereco);
+		EnderecoEntity endereco = opEndereco.get();
 
-			return new ResponseEntity<>(HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha ao atualizar endereco";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
+		if (enderecoInput.getNumero() != null) {
+			endereco.setNumero(enderecoInput.getNumero());
+			endereco.setComplemento(enderecoInput.getComplemento());
 		}
+
+		EnderecoEntity entity = enderecoRepository.save(endereco);
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(entity)
+				.build();
 	}
 
 	@DeleteMapping("/{id}")
-	public ResponseEntity<?> delete(@PathVariable("id") Long id) {
-		try {
-			enderecoRepository.deleteById(id);
-			return new ResponseEntity<>(HttpStatus.OK);
-		} catch (Exception e) {
-			String message = "Falha ao remover endereco";
-			logger.error(message, e);
-			return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+	@ResponseStatus(HttpStatus.OK)
+	public ResponseAPI delete(@PathVariable("id") Long id) {
+		enderecoRepository.deleteById(id);
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.build();
 	}
 	
 	private Optional<EnderecoEntity> getByCep(String cep) {
-		try {
-			String urlViaCep = "http://viacep.com.br/ws/" + cep + "/json/";
-			ResponseEntity<String> response = new RestTemplate().getForEntity(urlViaCep, String.class);
-	
-			EnderecoEntity enderecoEntity = new Gson().fromJson(response.getBody(), EnderecoEntity.class);
-			return Optional.ofNullable(enderecoEntity);
-		} catch (Exception e) {
-			String message = "Falha ao buscar endereco no servico vaicep";
-			logger.error(message, e);
-			return Optional.empty();
-		}
+		String urlViaCep = "http://viacep.com.br/ws/" + cep + "/json/";
+		ResponseEntity<String> response = new RestTemplate().getForEntity(urlViaCep, String.class);
+
+		EnderecoEntity enderecoEntity = new Gson().fromJson(response.getBody(), EnderecoEntity.class);
+		return Optional.ofNullable(enderecoEntity);
 	}
 
 }
