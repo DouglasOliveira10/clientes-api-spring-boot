@@ -9,9 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -34,9 +33,12 @@ import br.com.estudo.controller.responses.ResponseItems;
 import br.com.estudo.dao.entity.EnderecoEntity;
 import br.com.estudo.dao.repository.EnderecoRepository;
 import br.com.estudo.exception.EnderecoException;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
+@Api
 @RestController
-@RequestMapping("/endereco")
+@RequestMapping("/enderecos")
 @CrossOrigin
 public class EnderecoController {
 
@@ -47,6 +49,7 @@ public class EnderecoController {
 
 	@GetMapping("/{id}")
 	@ResponseStatus(HttpStatus.OK)
+	@ApiOperation(value = "Busca de endereco por id", response = EnderecoEntity.class)
 	public ResponseAPI findById(@PathVariable(value = "id") Long id) throws EnderecoException {
 		logger.info("buscando endereco por id: {}", id);
 		Optional<EnderecoEntity> endereco = enderecoRepository.findById(id);
@@ -62,6 +65,7 @@ public class EnderecoController {
 
 	@GetMapping("/batch")
 	@ResponseStatus(HttpStatus.OK)
+	@ApiOperation(value = "Lista enderecos por ids", responseContainer = "List", response = EnderecoEntity.class)
 	public ResponseAPI findByIdIn(@RequestParam(required = true, value = "ids") List<Long> ids) {
 		logger.info("buscando endereco por ids: {}", ids);
 		List<EnderecoEntity> enderecos = enderecoRepository.findAllById(ids);
@@ -74,9 +78,16 @@ public class EnderecoController {
 
 	@GetMapping
 	@ResponseStatus(HttpStatus.OK)
-	public ResponseAPI findAll(@PageableDefault(page = 0, size = 5, sort = { "id" }, direction = Sort.Direction.DESC) Pageable pageable) {
+	@ApiOperation(value = "Lista enderecos", responseContainer = "List", response = EnderecoEntity.class)
+	public ResponseAPI findAll(
+			@RequestParam(required = false, defaultValue = "0") int page,
+			@RequestParam(required = false, defaultValue = "20") int size,
+			@RequestParam(required = false, defaultValue = "id") String sortBy,
+			@RequestParam(required = false, defaultValue = "DESC") String sortDirection) {
+		
 		logger.info("buscando enderecos");
-		Page<EnderecoEntity> pageEnderecos = enderecoRepository.findAll(pageable);
+		PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(sortDirection), sortBy));
+		Page<EnderecoEntity> pageEnderecos = enderecoRepository.findAll(pageRequest);
 		
 		ResponseItems items = ResponseItems.builder()
 				.items(pageEnderecos.getContent())
@@ -93,6 +104,7 @@ public class EnderecoController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
+	@ApiOperation(value = "Insere um novo endereco", response = EnderecoEntity.class)
 	public ResponseAPI save(@Valid @RequestBody EnderecoEntity enderecoEntity) throws EnderecoException {
 		logger.info("criando novo endereco");
 
@@ -114,6 +126,7 @@ public class EnderecoController {
 
 	@PutMapping("/{id}")
 	@ResponseStatus(HttpStatus.OK)
+	@ApiOperation(value = "Atualiza um endereco", response = EnderecoEntity.class)
 	public ResponseAPI update(@PathVariable(value = "id") Long id, @RequestBody EnderecoEntity enderecoInput) throws EnderecoException {
 		Optional<EnderecoEntity> opEndereco = enderecoRepository.findById(id);
 		if (!opEndereco.isPresent())
@@ -136,6 +149,7 @@ public class EnderecoController {
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.OK)
+	@ApiOperation(value = "Remove um endereco por id")
 	public ResponseAPI delete(@PathVariable("id") Long id) {
 		enderecoRepository.deleteById(id);
 		
