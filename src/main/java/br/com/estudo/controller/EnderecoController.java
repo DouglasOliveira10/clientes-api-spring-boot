@@ -128,6 +128,7 @@ public class EnderecoController {
 	@ResponseStatus(HttpStatus.OK)
 	@ApiOperation(value = "Atualiza um endereco", response = EnderecoEntity.class)
 	public ResponseAPI update(@PathVariable(value = "id") Long id, @RequestBody EnderecoEntity enderecoInput) throws EnderecoException {
+		
 		Optional<EnderecoEntity> opEndereco = enderecoRepository.findById(id);
 		if (!opEndereco.isPresent())
 			throw new EnderecoException("Endereço não encontrado!");
