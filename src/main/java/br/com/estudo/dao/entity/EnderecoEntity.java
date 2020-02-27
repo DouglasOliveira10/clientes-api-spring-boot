@@ -4,6 +4,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -16,7 +17,9 @@ import lombok.Data;
 public class EnderecoEntity {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.SEQUENCE)
+	
+	@SequenceGenerator(name="endereco_seq", initialValue=4, allocationSize=100)
+	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "endereco_seq")
 	private long id;
 	
 	@NotNull @NotBlank
