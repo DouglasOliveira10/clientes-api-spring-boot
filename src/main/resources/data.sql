@@ -104,10 +104,10 @@ insert into cliente (id, nome, idade, id_endereco) values (	99, 'Xico Quintero',
 
 --Endereços
 insert into endereco (id, cep, logradouro, numero, complemento, bairro, localidade, uf) 
-values (1, '13256560', 'Rua Bechara Nader', 0, '', 'Loteamento Residencial Terra Nova', 'Itatiba', 'sp');
+values (1, '13256-560', 'Rua Bechara Nader', 0, '', 'Loteamento Residencial Terra Nova', 'Itatiba', 'sp');
 
 insert into endereco (id, cep, logradouro, numero, complemento, bairro, localidade, uf) 
-values (2, '06417000', 'Estrada dos Romeiros', 0, '', 'Vila São Silvestre', 'Barueri', 'sp');
+values (2, '06417-000', 'Estrada dos Romeiros', 0, '', 'Vila São Silvestre', 'Barueri', 'sp');
 
 insert into endereco (id, cep, logradouro, numero, complemento, bairro, localidade, uf) 
-values (3, '12952438', 'Alameda Sabiá', 0, '', 'Jardim Paraíso da Usina', 'Atibaia', 'sp');
+values (3, '12952-438', 'Alameda Sabiá', 0, '', 'Jardim Paraíso da Usina', 'Atibaia', 'sp');

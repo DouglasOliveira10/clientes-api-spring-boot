@@ -159,12 +159,32 @@ public class EnderecoController {
 				.build();
 	}
 	
-	private Optional<EnderecoEntity> getByCep(String cep) {
-		String urlViaCep = "http://viacep.com.br/ws/" + cep + "/json/";
-		ResponseEntity<String> response = new RestTemplate().getForEntity(urlViaCep, String.class);
+	@GetMapping("/cep/{cep}")
+	@ResponseStatus(HttpStatus.OK)
+	@ApiOperation(value = "Retorna os dados do endereço pelo cep")
+	public ResponseAPI findDataByCep(@PathVariable("cep") String cep) throws EnderecoException {
+		logger.info("buscando dados do endereco pelo cep: {}", cep);
+		Optional<EnderecoEntity> endereco = getByCep(cep);
 
-		EnderecoEntity enderecoEntity = new Gson().fromJson(response.getBody(), EnderecoEntity.class);
-		return Optional.ofNullable(enderecoEntity);
+		if (!endereco.isPresent())
+			throw new EnderecoException("Endereço não encontrado!");
+		
+		return ResponseAPI.builder()
+				.httpStatusCode(HttpStatus.OK.value())
+				.data(endereco.get())
+				.build();
+	}
+	
+	private Optional<EnderecoEntity> getByCep(String cep) throws EnderecoException {		
+		try {
+			String urlViaCep = "http://viacep.com.br/ws/" + cep + "/json/";
+			ResponseEntity<String> response = new RestTemplate().getForEntity(urlViaCep, String.class);
+			
+			EnderecoEntity enderecoEntity = new Gson().fromJson(response.getBody(), EnderecoEntity.class);
+			return Optional.ofNullable(enderecoEntity);
+		} catch (Exception e) {
+			throw new EnderecoException("Falha ao encontrar endereço no VIACEP!");
+		}
 	}
 
 }
