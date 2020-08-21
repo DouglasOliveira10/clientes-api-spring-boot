@@ -25,6 +25,11 @@ Construa a aplicação com __mvn clean install__, logo após, é possível execu
 
 ---
 
+### Swagger
+
+http://localhost:8080/swagger-ui.html
+http://localhost:8080/v2/api-docs
+
 ### Tecnologias
 
 * Java 8

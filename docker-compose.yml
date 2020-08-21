@@ -1,0 +1,28 @@
+version: '3.3'
+networks:
+  api:
+  banco:
+services:
+  db:
+    image: mysql
+    volumes:
+      - D:\workspace\DevOpsCred\volume-mysql:/var/lib/mysql
+    networks:
+      - banco
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=password
+  api:
+    build: .
+    # Aqui ele não esta procurando imagem, so usando o nome que eu quero
+    image: douglasolivier/clientes-api:0.0.4
+    depends_on:
+      - db
+    networks:
+      - api
+      - banco
+    environment:
+      - MYSQL_HOST=db
+    ports:
+      - 8080:8080
